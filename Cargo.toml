@@ -1,0 +1,18 @@
+# soksak-contract-surface — the contract soksak-spec-sidecar-surface, Rust half.
+#
+# Nothing here runs and nothing here ships. A render sidecar consumes this as a dev-dependency for
+# the channel message codec, the ring state machine and the wire fixtures; the Go half beside it
+# serves the application. Both decode the same committed bytes.
+[package]
+name = "soksak-contract-surface"
+version = "0.0.1"
+edition = "2024"
+publish = false
+description = "The soksak-spec-sidecar-surface contract: channel name, message wire, ring rule and wire fixtures."
+
+[lib]
+name = "soksak_contract_surface"
+path = "src/lib.rs"
+
+# Independent workspace — it sits beside the units, not inside one.
+[workspace]
