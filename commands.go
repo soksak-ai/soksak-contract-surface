@@ -62,10 +62,10 @@ func ValidateOpen(request map[string]any) (Open, error) {
 	if err != nil {
 		return Open{}, err
 	}
-	if open.Font.Family, err = text(font, "font.family"); err != nil {
+	if open.Font.Family, err = labeled(font, "family", "font.family"); err != nil {
 		return Open{}, err
 	}
-	if open.Font.Pt, err = number(font, "font.pt"); err != nil {
+	if open.Font.Pt, err = labeledNumber(font, "pt", "font.pt"); err != nil {
 		return Open{}, err
 	}
 	theme, err := object(request, "theme")
@@ -77,7 +77,7 @@ func ValidateOpen(request map[string]any) (Open, error) {
 		"cursorAccent": &open.Theme.CursorAccent, "selectionBg": &open.Theme.SelectionBg,
 		"selectionFg": &open.Theme.SelectionFg,
 	} {
-		if *into, err = text(theme, "theme."+field); err != nil {
+		if *into, err = labeled(theme, field, "theme."+field); err != nil {
 			return Open{}, err
 		}
 	}
@@ -101,11 +101,16 @@ func ValidateOpen(request map[string]any) (Open, error) {
 }
 
 func text(request map[string]any, field string) (string, error) {
-	raw, present := request[field]
+	return labeled(request, field, field)
+}
+
+// labeled reads by key and refuses by label, so a nested field is named by its path.
+func labeled(request map[string]any, key, label string) (string, error) {
+	raw, present := request[key]
 	if !present {
-		return "", fmt.Errorf("surface request is missing %s", field)
+		return "", fmt.Errorf("surface request is missing %s", label)
 	}
-	return textOf(raw, field)
+	return textOf(raw, label)
 }
 
 func textOf(raw any, field string) (string, error) {
@@ -117,13 +122,17 @@ func textOf(raw any, field string) (string, error) {
 }
 
 func number(request map[string]any, field string) (float64, error) {
-	raw, present := request[field]
+	return labeledNumber(request, field, field)
+}
+
+func labeledNumber(request map[string]any, key, label string) (float64, error) {
+	raw, present := request[key]
 	if !present {
-		return 0, fmt.Errorf("surface request is missing %s", field)
+		return 0, fmt.Errorf("surface request is missing %s", label)
 	}
 	value, numeric := raw.(float64)
 	if !numeric {
-		return 0, fmt.Errorf("surface request field %s is not a number", field)
+		return 0, fmt.Errorf("surface request field %s is not a number", label)
 	}
 	return value, nil
 }
