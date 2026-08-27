@@ -179,3 +179,15 @@ func ansiFixture() []any {
 }
 
 func stringOf(message Message) string { return Format(message) }
+
+func TestWireLengthTrimsPadding(t *testing.T) {
+	wire, err := Encode(&Gap{Pane: "tab-a.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	padded := append(append([]byte{}, wire...), 0, 0, 0)
+	length, err := WireLength(padded)
+	if err != nil || length != len(wire) {
+		t.Fatalf("length=%d err=%v wants %d", length, err, len(wire))
+	}
+}

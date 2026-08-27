@@ -58,3 +58,14 @@ fn port_counts_are_declared_per_kind() {
         assert_eq!(decode(&fixture(name)).unwrap().port_count(), 0, "{name}");
     }
 }
+
+#[test]
+fn wire_length_trims_padding() {
+    let wire = soksak_contract_surface::encode(&soksak_contract_surface::Message::Gap {
+        pane: "tab-a.1".into(),
+    })
+    .expect("encodes");
+    let mut padded = wire.clone();
+    padded.extend_from_slice(&[0, 0, 0]);
+    assert_eq!(soksak_contract_surface::wire_length(&padded).unwrap(), wire.len());
+}

@@ -205,6 +205,19 @@ pub fn encode(message: &Message) -> Result<Vec<u8>, String> {
 }
 
 /// Reads one framed message and refuses a foreign magic, version, kind or length by name.
+/// How many bytes one wire message occupies: a receiver trims mach padding
+/// with this instead of restating the header grammar.
+pub fn wire_length(wire: &[u8]) -> Result<usize, String> {
+    if wire.len() < HEADER_BYTES {
+        return Err(format!("wire of {} bytes cannot hold a header", wire.len()));
+    }
+    if wire[0..4] != WIRE_MAGIC.to_be_bytes() {
+        return Err("wire magic mismatch".to_string());
+    }
+    let payload = u16::from_be_bytes([wire[6], wire[7]]) as usize;
+    Ok(HEADER_BYTES + payload)
+}
+
 pub fn decode(wire: &[u8]) -> Result<Message, String> {
     if wire.len() < HEADER_BYTES {
         return Err(format!("surface message of {} bytes is shorter than the header", wire.len()));

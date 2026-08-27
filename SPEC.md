@@ -37,6 +37,16 @@ per ring, and a fixed-size signal per painted frame.
 
 ## 3. Channel messages
 
+### The mach packet
+
+- A packet's payload is exactly one wire message — no extra prefix. A message
+  with no rights carries no body word: its bytes start right after the mach
+  header. A message with rights is complex: body, then the descriptors, then
+  the bytes.
+- Mach sizes are 4-byte aligned, so a receiver trims the padding with the
+  wire's own length (`WireLength`/`wire_length`) before decoding.
+
+
 Every message starts with a fixed header: `magic u32 'sksf'`, `version u8 = 1`, `kind u8`,
 `payloadLen u16`, all big-endian. A message whose magic or version differs is refused by name.
 Pane keys travel as `len u8` + UTF-8 bytes and follow the pane-key grammar of the terminal

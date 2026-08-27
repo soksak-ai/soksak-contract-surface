@@ -128,6 +128,19 @@ func Encode(message Message) ([]byte, error) {
 }
 
 // Decode reads one framed message and refuses a foreign magic, version, kind or length by name.
+
+// WireLength answers how many bytes one wire message occupies, so a receiver
+// can trim mach padding without restating the header grammar.
+func WireLength(wire []byte) (int, error) {
+	if len(wire) < headerBytes {
+		return 0, fmt.Errorf("wire of %d bytes cannot hold a header", len(wire))
+	}
+	if binary.BigEndian.Uint32(wire[0:4]) != wireMagic {
+		return 0, fmt.Errorf("wire magic mismatch")
+	}
+	return headerBytes + int(binary.BigEndian.Uint16(wire[6:8])), nil
+}
+
 func Decode(wire []byte) (Message, error) {
 	if len(wire) < headerBytes {
 		return nil, fmt.Errorf("surface message of %d bytes is shorter than the header", len(wire))

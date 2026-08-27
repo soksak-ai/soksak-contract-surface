@@ -39,6 +39,13 @@ mach 채널, 그리고 버전 있는 control envelope 위의 `surface.*` 명령.
 
 ## 3. 채널 메시지
 
+### mach 패킷
+
+- 패킷의 페이로드는 정확히 와이어 메시지 하나다 — 어떤 접두도 없다. 권리가 없는 메시지는 body 워드를
+  싣지 않으며 바이트가 mach 헤더 바로 뒤에서 시작한다. 권리가 있으면 complex: body, 디스크립터, 바이트 순.
+- mach 크기는 4바이트 정렬이므로 수신자는 와이어 자신의 길이(`WireLength`/`wire_length`)로 패딩을
+  잘라낸 뒤 해독한다.
+
 모든 메시지는 고정 헤더로 시작한다: `magic u32 'sksf'`, `version u8 = 1`, `kind u8`,
 `payloadLen u16`, 전부 big-endian. magic 이나 version 이 다른 메시지는 이름과 함께 거부한다.
 pane 키는 `len u8` + UTF-8 로 이동하며 터미널 플러그인 계약의 pane 키 문법을 따른다.
