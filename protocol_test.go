@@ -140,12 +140,12 @@ func TestRingRefusesReleasingTheDisplayedSurface(t *testing.T) {
 
 // Command payloads are validated once, here, and a refusal names the first missing field.
 func TestValidateOpenNamesTheFirstMissingField(t *testing.T) {
-	_, err := ValidateOpen(map[string]any{"window": "win-abc123"})
+	_, err := ValidateOpen(map[string]any{"identifier": "soksak-conformance", "window": "win-abc123"})
 	if err == nil || !strings.Contains(err.Error(), "pane") {
 		t.Fatalf("missing pane was not named: %v", err)
 	}
 	open, err := ValidateOpen(map[string]any{
-		"window": "win-abc123", "pane": "tab-abc123.1", "pixelW": 1280.0, "pixelH": 720.0,
+		"identifier": "soksak-conformance", "window": "win-abc123", "pane": "tab-abc123.1", "pixelW": 1280.0, "pixelH": 720.0,
 		"scale": 2.0, "font": map[string]any{"family": "Menlo", "pt": 13.0},
 		"theme": map[string]any{"fg": "#ffffff", "bg": "#000000", "cursor": "#ffffff",
 			"cursorAccent": "#000000", "selectionBg": "#334455", "selectionFg": "#ffffff",

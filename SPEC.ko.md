@@ -2,7 +2,7 @@
 
 > 번역본. 정본은 [SPEC.md](SPEC.md) 이며 이 문서는 독립 규칙을 정의하지 않는다.
 
-계약 id: **`soksak-spec-sidecar-surface`**, 버전 **0.0.1**.
+계약 id: **`soksak-spec-sidecar-surface`**, 버전 **0.0.2**.
 
 렌더 사이드카는 터미널 그리드 미러를 소유하고 그것을 칠한다. 애플리케이션은 창과 입력 장치를
 소유한다. 이 계약은 그 사이의 이음매다: 사이드카가 채우는 IOSurface 링, 링과 프레임 신호를 나르는
@@ -26,6 +26,8 @@ mach 채널, 그리고 버전 있는 control envelope 위의 `surface.*` 명령.
 - 애플리케이션은 설치본마다 서비스 이름 하나를 도출한다: `<identifier>.surface`. `<identifier>` 는
   control socket 을 이름 짓는 그 설치 식별자다. 이름은 bootstrap 의 128 바이트 한계 안이어야 하며,
   넘는 식별자는 이름과 함께 거부한다.
+  사이드카 프로세스는 자기 identifier 를 갖지 않는다 — `surface.open` 이 그것을 싣고, 양쪽이 같은
+  이름을 그 값에서 도출한다.
 - 애플리케이션이 그 이름을 `bootstrap_check_in`(수신 권리)하고, 사이드카가 `bootstrap_look_up`(송신
   권리)한다. 자식은 자기를 spawn 한 프로세스 — 애플리케이션의 사이드카 호스트 — 의 bootstrap
   네임스페이스를 물려받는다.
@@ -71,7 +73,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 
 | 명령 | 요청 | 답 |
 | --- | --- | --- |
-| `surface.open` | `window, pane, pixelW, pixelH, scale, font{family, pt}, theme{fg, bg, cursor, cursorAccent, selectionBg, selectionFg, ansi[256]}, cwd?` | `cols, rows, cellW, cellH` — 링은 채널로 뒤따른다 |
+| `surface.open` | `identifier, window, pane, pixelW, pixelH, scale, font{family, pt}, theme{fg, bg, cursor, cursorAccent, selectionBg, selectionFg, ansi[256]}, cwd?` | `cols, rows, cellW, cellH` — 링은 채널로 뒤따른다 |
 | `surface.resize` | `pane, pixelW, pixelH, scale` | `cols, rows` |
 | `surface.setPaused` | `pane, paused` | `{}` — paused 동안 프레임 없음 |
 | `surface.preedit` | `pane, text, caret` | `{}` — 오버레이로만 그리고 PTY 에 쓰지 않는다 |

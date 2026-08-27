@@ -25,6 +25,9 @@ type ThemeSpec struct {
 
 // Open is a validated surface.open request.
 type Open struct {
+	// Identifier is the installation identifier the channel name derives
+	// from; the sidecar process holds none of its own.
+	Identifier     string
 	Window, Pane   string
 	PixelW, PixelH uint32
 	Scale          float64
@@ -37,6 +40,9 @@ type Open struct {
 func ValidateOpen(request map[string]any) (Open, error) {
 	var open Open
 	var err error
+	if open.Identifier, err = text(request, "identifier"); err != nil {
+		return Open{}, err
+	}
 	if open.Window, err = text(request, "window"); err != nil {
 		return Open{}, err
 	}

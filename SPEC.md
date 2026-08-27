@@ -1,6 +1,6 @@
 # soksak-contract-surface — sidecar-rendered terminal surfaces
 
-Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.1**.
+Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.2**.
 
 A render sidecar owns a terminal grid mirror and paints it. The application owns the window and
 the input devices. This contract is the seam between them: an IOSurface ring the sidecar fills,
@@ -22,7 +22,9 @@ per ring, and a fixed-size signal per painted frame.
 ## 2. The channel
 
 - The application derives one service name per installation: `<identifier>.surface`, where
-  `<identifier>` is the installation identifier that already names the control socket. The name
+  `<identifier>` is the installation identifier that already names the control socket. The
+  sidecar process holds no identifier of its own — `surface.open` carries it, and both halves
+  derive the same name from it. The name
   must stay within the 128-byte bootstrap limit; a longer identifier is refused by name.
 - The application `bootstrap_check_in`s the name (receive right). A sidecar `bootstrap_look_up`s
   it (send right). Children inherit the bootstrap namespace from the process that spawned them,
@@ -72,7 +74,7 @@ missing or malformed field is refused with its name.
 
 | command | request | answer |
 | --- | --- | --- |
-| `surface.open` | `window, pane, pixelW, pixelH, scale, font{family, pt}, theme{fg, bg, cursor, cursorAccent, selectionBg, selectionFg, ansi[256]}, cwd?` | `cols, rows, cellW, cellH` — the ring follows on the channel |
+| `surface.open` | `identifier, window, pane, pixelW, pixelH, scale, font{family, pt}, theme{fg, bg, cursor, cursorAccent, selectionBg, selectionFg, ansi[256]}, cwd?` | `cols, rows, cellW, cellH` — the ring follows on the channel |
 | `surface.resize` | `pane, pixelW, pixelH, scale` | `cols, rows` |
 | `surface.setPaused` | `pane, paused` | `{}` — paused produces no frame |
 | `surface.preedit` | `pane, text, caret` | `{}` — drawn as overlay, never written to the PTY |
