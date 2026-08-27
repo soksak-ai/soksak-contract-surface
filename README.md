@@ -14,8 +14,21 @@ The channel carries mach ports, so it exists only on darwin. Every other platfor
 Windows (DXGI shared handles) and Linux (dmabuf) arrive as their own channel sections when a
 backend exists for them.
 
+## Two halves, one wire
+
+The Go package serves the application side; the Rust crate serves the render sidecar side. Both
+encode and decode the committed bytes under `testdata/messages/`, so a layout change that forgets
+one side fails a test here rather than on a live channel. The ring state machine exists in both
+languages and holds the same rule.
+
 ## Verification
 
 ```sh
 make verify
+```
+
+Regenerating the wire fixtures after a deliberate layout change:
+
+```sh
+go test -run TestWireFixtures -update ./...
 ```
