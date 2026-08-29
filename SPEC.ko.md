@@ -84,7 +84,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 | `surface.resize` | `pane, pixelW, pixelH, scale` | `cols, rows` |
 | `surface.setPaused` | `pane, paused` | `{}` — paused 동안 프레임 없음 |
 | `surface.preedit` | `pane, text, caret` | `{}` — 오버레이로만 그리고 PTY 에 쓰지 않는다 |
-| `surface.selection` | `pane, action: "read"` \| `action: "clear"` \| `action: "gesture", gestureId, phase, kind, point{row,col,side}, modifiers{shift,alt,control,meta}` | 완전한 `SelectionSnapshot` |
+| `surface.selection` | `window, pane, action: "read"` \| `action: "clear"` \| `action: "gesture", gestureId, phase, kind, point{row,col,side}, modifiers{shift,alt,control,meta}` | 완전한 `SelectionSnapshot` |
 | `surface.hover` | `pane, row, col` 또는 `pane, clear: true` | `{}` — 링크 밑줄 |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — 현재 offset 의 viewport |
@@ -94,7 +94,8 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 `cols`/`rows` 는 사이드카의 답이지 애플리케이션의 추측이 아니다. 폰트를 측정한 쪽이 사이드카다.
 애플리케이션은 답을 받은 숫자로 `pty.resize` 를 구동한다.
 
-`surface.selection`은 strict discriminated union이다. `phase`는 `begin|update|end`, `kind`는
+`surface.selection`은 strict discriminated union이다. `window`와 `pane`은 selection owner 주소이며
+모든 action에서 필수다. `phase`는 `begin|update|end`, `kind`는
 `simple|block|semantic|line|extend`, `side`는 `left|right`다. Point는 현재 표시된 viewport 좌표이며
 render owner가 현재 scroll offset을 통해 row를 변환한다. 모든 gesture request는 modifier 네 개와 비어
 있지 않은 opaque `gestureId`를 모두 전달한다. Begin이 owner를 claim하고 다른 owner의 update/end는
