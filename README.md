@@ -10,6 +10,9 @@ channel (a bootstrap-derived mach service), the ring hand-off, the frame-ready a
 messages, and the `surface.*` command payloads that ride the control envelope. It contains no
 transport or renderer implementation. See [SPEC.md](SPEC.md) for the normative boundary.
 
+Selection is an engine-owned, versioned gesture state. This contract defines the exact request
+union and complete snapshot; it provides no generic cell-text selection fallback.
+
 The channel carries mach ports, so it exists only on darwin. Every other platform fails by name;
 Windows (DXGI shared handles) and Linux (dmabuf) arrive as their own channel sections when a
 backend exists for them.

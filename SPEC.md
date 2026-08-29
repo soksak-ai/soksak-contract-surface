@@ -1,6 +1,6 @@
 # soksak-contract-surface — sidecar-rendered terminal surfaces
 
-Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.2**.
+Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.3**.
 
 A render sidecar owns a terminal grid mirror and paints it. The application owns the window and
 the input devices. This contract is the seam between them: an IOSurface ring the sidecar fills,
@@ -88,7 +88,7 @@ missing or malformed field is refused with its name.
 | `surface.resize` | `pane, pixelW, pixelH, scale` | `cols, rows` |
 | `surface.setPaused` | `pane, paused` | `{}` — paused produces no frame |
 | `surface.preedit` | `pane, text, caret` | `{}` — drawn as overlay, never written to the PTY |
-| `surface.selection` | `pane, from{row, col}, to{row, col}` or `pane, clear: true` | `text` of the selection |
+| `surface.selection` | `pane, action: "read"` \| `action: "clear"` \| `action: "gesture", gestureId, phase, kind, point{row,col,side}, modifiers{shift,alt,control,meta}` | complete `SelectionSnapshot` |
 | `surface.hover` | `pane, row, col` or `pane, clear: true` | `{}` — link underline |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — the viewport at the current offset |
@@ -97,6 +97,24 @@ missing or malformed field is refused with its name.
 
 `cols`/`rows` are the sidecar's answer, never the application's guess: the sidecar measured the
 font. The application drives `pty.resize` with the answered numbers.
+
+`surface.selection` is a strict discriminated union. `phase` is `begin|update|end`; `kind` is
+`simple|block|semantic|line|extend`; `side` is `left|right`. A point is in the currently presented
+viewport and the render owner translates its row through the current scroll offset. Every gesture
+request carries all four modifiers and one non-empty opaque `gestureId`. A begin claims that owner;
+an update or end for another owner is refused as `STALE_GESTURE`. A later begin supersedes the old
+owner. Clear is unconditional.
+
+Every action returns `SelectionSnapshot`:
+
+```
+active, text, kind, anchor{row,col,side}, focus{row,col,side}, gestureId, sequence
+```
+
+`sequence` is monotonic per pane, including clear. A caller adopts only a snapshot whose sequence is
+not older than its current observation. When inactive, text is empty and kind, anchor, focus and
+gestureId are null. The engine owns gesture expansion, selected text and row ranges used by the
+painter. Core, the application service and the Plugin do not reconstruct selection from cells.
 
 ## 6. Presence
 
