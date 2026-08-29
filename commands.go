@@ -1,6 +1,7 @@
 package surfacecontract
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math"
 	"sort"
@@ -10,7 +11,7 @@ import (
 func CommandNames() []string {
 	return []string{
 		"surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
-		"surface.selection", "surface.hover", "surface.scroll", "surface.read",
+		"surface.selection", "surface.hover", "surface.wheel", "surface.scroll", "surface.read",
 		"surface.theme", "surface.close",
 	}
 }
@@ -82,6 +83,174 @@ type SelectionPoint struct {
 
 type SelectionModifiers struct {
 	Shift, Alt, Control, Meta bool
+}
+
+type WheelDeltaMode string
+
+const (
+	WheelDeltaPixel WheelDeltaMode = "pixel"
+	WheelDeltaLine  WheelDeltaMode = "line"
+	WheelDeltaPage  WheelDeltaMode = "page"
+)
+
+type SurfacePoint struct {
+	X, Y float64
+}
+
+// WheelRequest preserves the input device's coordinate, unit and modifier facts. The render owner
+// decides whether those facts scroll history, become a mouse report, or become alternate-screen
+// cursor input; callers do not inspect terminal modes and choose a route themselves.
+type WheelRequest struct {
+	Window         string
+	Pane           string
+	Point          SurfacePoint
+	DeltaX, DeltaY float64
+	DeltaMode      WheelDeltaMode
+	Modifiers      SelectionModifiers
+}
+
+type WheelRoute string
+
+const (
+	WheelScrollback      WheelRoute = "scrollback"
+	WheelMouseReport     WheelRoute = "mouse-report"
+	WheelAlternateScroll WheelRoute = "alternate-scroll"
+	WheelIgnored         WheelRoute = "ignored"
+)
+
+// WheelEngineResult is the render owner's answer before the application writes any returned input
+// through the one PTY writer. All four fields are present on the wire; inactive values are null.
+type WheelEngineResult struct {
+	Route       WheelRoute
+	Offset      *uint64
+	HistorySize *uint64
+	DataB64     *string
+}
+
+func ValidateWheel(request map[string]any) (WheelRequest, error) {
+	if err := exactKeys("surface.wheel", request,
+		"window", "pane", "point", "deltaX", "deltaY", "deltaMode", "modifiers"); err != nil {
+		return WheelRequest{}, err
+	}
+	window, err := text(request, "window")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	pane, err := text(request, "pane")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	pointValue, err := object(request, "point")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	if err := exactKeys("surface.wheel point", pointValue, "x", "y"); err != nil {
+		return WheelRequest{}, err
+	}
+	x, err := finiteNumber(pointValue, "x")
+	if err != nil || x < 0 {
+		return WheelRequest{}, fmt.Errorf("surface.wheel point.x is not a non-negative finite number")
+	}
+	y, err := finiteNumber(pointValue, "y")
+	if err != nil || y < 0 {
+		return WheelRequest{}, fmt.Errorf("surface.wheel point.y is not a non-negative finite number")
+	}
+	deltaX, err := finiteNumber(request, "deltaX")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	deltaY, err := finiteNumber(request, "deltaY")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	if deltaX == 0 && deltaY == 0 {
+		return WheelRequest{}, fmt.Errorf("surface.wheel delta is empty")
+	}
+	deltaModeText, err := text(request, "deltaMode")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	deltaMode := WheelDeltaMode(deltaModeText)
+	if deltaMode != WheelDeltaPixel && deltaMode != WheelDeltaLine && deltaMode != WheelDeltaPage {
+		return WheelRequest{}, fmt.Errorf("surface.wheel deltaMode is not pixel, line or page")
+	}
+	modifierValue, err := object(request, "modifiers")
+	if err != nil {
+		return WheelRequest{}, err
+	}
+	if err := exactKeys("surface.wheel modifiers", modifierValue, "shift", "alt", "control", "meta"); err != nil {
+		return WheelRequest{}, err
+	}
+	modifiers := SelectionModifiers{}
+	if modifiers.Shift, err = boolean(modifierValue, "shift"); err != nil {
+		return WheelRequest{}, err
+	}
+	if modifiers.Alt, err = boolean(modifierValue, "alt"); err != nil {
+		return WheelRequest{}, err
+	}
+	if modifiers.Control, err = boolean(modifierValue, "control"); err != nil {
+		return WheelRequest{}, err
+	}
+	if modifiers.Meta, err = boolean(modifierValue, "meta"); err != nil {
+		return WheelRequest{}, err
+	}
+	return WheelRequest{
+		Window: window, Pane: pane, Point: SurfacePoint{X: x, Y: y}, DeltaX: deltaX,
+		DeltaY: deltaY, DeltaMode: deltaMode, Modifiers: modifiers,
+	}, nil
+}
+
+func ValidateWheelEngineResult(answer map[string]any) (WheelEngineResult, error) {
+	if err := exactKeys("surface.wheel engine answer", answer,
+		"route", "offset", "historySize", "dataB64"); err != nil {
+		return WheelEngineResult{}, err
+	}
+	routeText, err := text(answer, "route")
+	if err != nil {
+		return WheelEngineResult{}, err
+	}
+	result := WheelEngineResult{Route: WheelRoute(routeText)}
+	nullInteger := func(field string) (*uint64, error) {
+		if answer[field] == nil {
+			return nil, nil
+		}
+		value, valueErr := nonNegativeInteger(answer, field)
+		return &value, valueErr
+	}
+	if result.Offset, err = nullInteger("offset"); err != nil {
+		return WheelEngineResult{}, err
+	}
+	if result.HistorySize, err = nullInteger("historySize"); err != nil {
+		return WheelEngineResult{}, err
+	}
+	if answer["dataB64"] != nil {
+		value, valid := answer["dataB64"].(string)
+		if !valid || value == "" {
+			return WheelEngineResult{}, fmt.Errorf("surface.wheel engine answer dataB64 is not a non-empty string")
+		}
+		decoded, decodeErr := base64.StdEncoding.DecodeString(value)
+		if decodeErr != nil || len(decoded) == 0 {
+			return WheelEngineResult{}, fmt.Errorf("surface.wheel engine answer dataB64 is not non-empty base64")
+		}
+		result.DataB64 = &value
+	}
+	switch result.Route {
+	case WheelScrollback:
+		if result.Offset == nil || result.HistorySize == nil || result.DataB64 != nil {
+			return WheelEngineResult{}, fmt.Errorf("surface.wheel scrollback answer is incomplete")
+		}
+	case WheelMouseReport, WheelAlternateScroll:
+		if result.Offset != nil || result.HistorySize != nil || result.DataB64 == nil {
+			return WheelEngineResult{}, fmt.Errorf("surface.wheel input answer is incomplete")
+		}
+	case WheelIgnored:
+		if result.Offset != nil || result.HistorySize != nil || result.DataB64 != nil {
+			return WheelEngineResult{}, fmt.Errorf("surface.wheel ignored answer retains an effect")
+		}
+	default:
+		return WheelEngineResult{}, fmt.Errorf("surface.wheel engine answer route is invalid")
+	}
+	return result, nil
 }
 
 // SelectionRequest is the closed surface.selection request union. GestureID is an opaque owner
@@ -367,6 +536,17 @@ func labeledNumber(request map[string]any, key, label string) (float64, error) {
 	value, numeric := raw.(float64)
 	if !numeric {
 		return 0, fmt.Errorf("surface request field %s is not a number", label)
+	}
+	return value, nil
+}
+
+func finiteNumber(request map[string]any, field string) (float64, error) {
+	value, err := number(request, field)
+	if err != nil {
+		return 0, err
+	}
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, fmt.Errorf("surface request field %s is not finite", field)
 	}
 	return value, nil
 }

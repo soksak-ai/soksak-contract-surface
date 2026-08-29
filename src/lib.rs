@@ -3,6 +3,8 @@
 //! against. The Go half beside it serves the application, and both decode the same committed
 //! wire fixtures.
 
+use base64::Engine as _;
+
 /// Appended to the installation identifier to derive the bootstrap service name.
 pub const CHANNEL_SUFFIX: &str = ".surface";
 
@@ -151,6 +153,103 @@ pub fn encode_selection_snapshot(snapshot: &SelectionSnapshot) -> Result<serde_j
         .map_err(|error| format!("surface.selection snapshot could not encode: {error}"))?)
         .and_then(|valid| serde_json::to_value(valid)
             .map_err(|error| format!("surface.selection snapshot could not encode: {error}")))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WheelDeltaMode { Pixel, Line, Page }
+
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SurfacePoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WheelRequest {
+    pub window: String,
+    pub pane: String,
+    pub point: SurfacePoint,
+    pub delta_x: f64,
+    pub delta_y: f64,
+    pub delta_mode: WheelDeltaMode,
+    pub modifiers: SelectionModifiers,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WheelRoute { Scrollback, MouseReport, AlternateScroll, Ignored }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WheelEngineResult {
+    pub route: WheelRoute,
+    pub offset: Option<u64>,
+    pub history_size: Option<u64>,
+    pub data_b64: Option<String>,
+}
+
+pub fn decode_wheel_request(value: &serde_json::Value) -> Result<WheelRequest, String> {
+    let request: WheelRequest = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.wheel request is invalid: {error}"))?;
+    if request.window.is_empty() {
+        return Err("surface.wheel window is empty".into());
+    }
+    if request.pane.is_empty() {
+        return Err("surface.wheel pane is empty".into());
+    }
+    if !request.point.x.is_finite() || request.point.x < 0.0
+        || !request.point.y.is_finite() || request.point.y < 0.0
+    {
+        return Err("surface.wheel point is not non-negative and finite".into());
+    }
+    if !request.delta_x.is_finite() || !request.delta_y.is_finite() {
+        return Err("surface.wheel delta is not finite".into());
+    }
+    if request.delta_x == 0.0 && request.delta_y == 0.0 {
+        return Err("surface.wheel delta is empty".into());
+    }
+    Ok(request)
+}
+
+pub fn decode_wheel_engine_result(value: &serde_json::Value) -> Result<WheelEngineResult, String> {
+    let result: WheelEngineResult = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.wheel engine result is invalid: {error}"))?;
+    let input = match result.data_b64.as_deref() {
+        None => None,
+        Some("") => return Err("surface.wheel engine result dataB64 is empty".into()),
+        Some(value) => {
+            let decoded = base64::engine::general_purpose::STANDARD.decode(value)
+                .map_err(|error| format!("surface.wheel engine result dataB64 is invalid: {error}"))?;
+            if decoded.is_empty() {
+                return Err("surface.wheel engine result dataB64 decodes empty".into());
+            }
+            Some(decoded)
+        }
+    };
+    match result.route {
+        WheelRoute::Scrollback
+            if result.offset.is_some() && result.history_size.is_some() && input.is_none() => {}
+        WheelRoute::MouseReport | WheelRoute::AlternateScroll
+            if result.offset.is_none() && result.history_size.is_none() && input.is_some() => {}
+        WheelRoute::Ignored
+            if result.offset.is_none() && result.history_size.is_none() && input.is_none() => {}
+        WheelRoute::Scrollback => return Err("surface.wheel scrollback result is incomplete".into()),
+        WheelRoute::MouseReport | WheelRoute::AlternateScroll => {
+            return Err("surface.wheel input result is incomplete".into())
+        }
+        WheelRoute::Ignored => return Err("surface.wheel ignored result retains an effect".into()),
+    }
+    Ok(result)
+}
+
+pub fn encode_wheel_engine_result(result: &WheelEngineResult) -> Result<serde_json::Value, String> {
+    decode_wheel_engine_result(&serde_json::to_value(result)
+        .map_err(|error| format!("surface.wheel engine result could not encode: {error}"))?)
+        .and_then(|valid| serde_json::to_value(valid)
+            .map_err(|error| format!("surface.wheel engine result could not encode: {error}")))
 }
 
 /// One channel message. Ports travel out of band as mach descriptors; `port_count` states how

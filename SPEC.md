@@ -1,6 +1,6 @@
 # soksak-contract-surface — sidecar-rendered terminal surfaces
 
-Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.5**.
+Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.6**.
 
 A render sidecar owns a terminal grid mirror and paints it. The application owns the window and
 the input devices. This contract is the seam between them: an IOSurface ring the sidecar fills,
@@ -90,6 +90,7 @@ missing or malformed field is refused with its name.
 | `surface.preedit` | `pane, text, caret` | `{}` — drawn as overlay, never written to the PTY |
 | `surface.selection` | `window, pane, action: "read"` \| `action: "clear"` \| `action: "gesture", gestureId, phase, kind, point{row,col,side}, modifiers{shift,alt,control,meta}` | complete `SelectionSnapshot` |
 | `surface.hover` | `pane, row, col` or `pane, clear: true` | `{}` — link underline |
+| `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine result: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — the viewport at the current offset |
 | `surface.theme` | `pane, theme{…}` | `{}` — no ring rebuild |
@@ -116,6 +117,15 @@ active, text, kind, anchor{row,col,side}, focus{row,col,side}, gestureId, sequen
 not older than its current observation. When inactive, text is empty and kind, anchor, focus and
 gestureId are null. The engine owns gesture expansion, selected text and row ranges used by the
 painter. Core, the application service and the Plugin do not reconstruct selection from cells.
+
+`surface.wheel` preserves the device facts rather than converting them at the DOM boundary.
+`deltaMode` states whether each delta is in pixels, lines or pages; `point` is in CSS pixels relative
+to the surface and all four modifiers are required. A zero delta, a non-finite coordinate or an
+unknown field is refused. The render owner chooses exactly one route from its current engine modes.
+`scrollback` returns non-null `offset` and `historySize` and null `dataB64`. `mouse-report` and
+`alternate-scroll` return non-empty base64 PTY input and null scroll state. `ignored` returns all
+three effect fields null. The application validates that answer and is the only process that writes
+decoded input to the PTY. Core and the Plugin do not encode mouse escape sequences.
 
 ## 6. Presence
 

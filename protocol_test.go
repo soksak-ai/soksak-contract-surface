@@ -162,7 +162,7 @@ func TestValidateOpenNamesTheFirstMissingField(t *testing.T) {
 func TestCommandNamesAreTheContract(t *testing.T) {
 	want := []string{
 		"surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
-		"surface.selection", "surface.hover", "surface.scroll", "surface.read",
+		"surface.selection", "surface.hover", "surface.wheel", "surface.scroll", "surface.read",
 		"surface.theme", "surface.close",
 	}
 	if got := strings.Join(CommandNames(), ","); got != strings.Join(want, ",") {
