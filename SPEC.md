@@ -1,6 +1,6 @@
 # soksak-contract-surface — sidecar-rendered terminal surfaces
 
-Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.6**.
+Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.7**.
 
 A render sidecar owns a terminal grid mirror and paints it. The application owns the window and
 the input devices. This contract is the seam between them: an IOSurface ring the sidecar fills,
@@ -90,6 +90,7 @@ missing or malformed field is refused with its name.
 | `surface.preedit` | `pane, text, caret` | `{}` — drawn as overlay, never written to the PTY |
 | `surface.selection` | `window, pane, action: "read"` \| `action: "clear"` \| `action: "gesture", gestureId, phase, kind, point{row,col,side}, modifiers{shift,alt,control,meta}` | complete `SelectionSnapshot` |
 | `surface.hover` | `pane, row, col` or `pane, clear: true` | `{}` — link underline |
+| `surface.pointer` | `window, pane, point{x,y}, phase: "down"\|"move"\|"up", button: "none"\|"left"\|"middle"\|"right", clickCount, modifiers{shift,alt,control,meta}` | engine result: `route: "mouse-report"\|"ignored", dataB64` |
 | `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine result: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — the viewport at the current offset |
@@ -126,6 +127,13 @@ unknown field is refused. The render owner chooses exactly one route from its cu
 `alternate-scroll` return non-empty base64 PTY input and null scroll state. `ignored` returns all
 three effect fields null. The application validates that answer and is the only process that writes
 decoded input to the PTY. Core and the Plugin do not encode mouse escape sequences.
+
+`surface.pointer` also preserves surface-relative CSS coordinates and all modifiers. A down or up
+names one physical button and has a positive click count. Move may name the held button, or `none`
+for no-button motion. The render owner compares the phase against its current 1000/1002/1003 modes
+and returns exactly one route. `mouse-report` has non-empty base64 input; `ignored` has null input.
+Shift bypasses terminal mouse capture so the Plugin can keep local selection. The application
+validates and writes returned bytes through the same single PTY writer used by wheel input.
 
 ## 6. Presence
 

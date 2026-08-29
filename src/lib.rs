@@ -252,6 +252,93 @@ pub fn encode_wheel_engine_result(result: &WheelEngineResult) -> Result<serde_js
             .map_err(|error| format!("surface.wheel engine result could not encode: {error}")))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PointerPhase { Down, Move, Up }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PointerButton { None, Left, Middle, Right }
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PointerRequest {
+    pub window: String,
+    pub pane: String,
+    pub point: SurfacePoint,
+    pub phase: PointerPhase,
+    pub button: PointerButton,
+    pub click_count: u8,
+    pub modifiers: SelectionModifiers,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PointerRoute { MouseReport, Ignored }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PointerEngineResult {
+    pub route: PointerRoute,
+    pub data_b64: Option<String>,
+}
+
+pub fn decode_pointer_request(value: &serde_json::Value) -> Result<PointerRequest, String> {
+    let request: PointerRequest = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.pointer request is invalid: {error}"))?;
+    if request.window.is_empty() {
+        return Err("surface.pointer window is empty".into());
+    }
+    if request.pane.is_empty() {
+        return Err("surface.pointer pane is empty".into());
+    }
+    if !request.point.x.is_finite() || request.point.x < 0.0
+        || !request.point.y.is_finite() || request.point.y < 0.0
+    {
+        return Err("surface.pointer point is not non-negative and finite".into());
+    }
+    if !matches!(request.phase, PointerPhase::Move) && matches!(request.button, PointerButton::None) {
+        return Err("surface.pointer down/up button is none".into());
+    }
+    if request.click_count > 3
+        || (!matches!(request.phase, PointerPhase::Move) && request.click_count == 0)
+    {
+        return Err("surface.pointer clickCount is invalid".into());
+    }
+    Ok(request)
+}
+
+pub fn decode_pointer_engine_result(value: &serde_json::Value) -> Result<PointerEngineResult, String> {
+    let result: PointerEngineResult = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.pointer engine result is invalid: {error}"))?;
+    let input = match result.data_b64.as_deref() {
+        None => None,
+        Some("") => return Err("surface.pointer engine result dataB64 is empty".into()),
+        Some(value) => {
+            let decoded = base64::engine::general_purpose::STANDARD.decode(value)
+                .map_err(|error| format!("surface.pointer engine result dataB64 is invalid: {error}"))?;
+            if decoded.is_empty() {
+                return Err("surface.pointer engine result dataB64 decodes empty".into());
+            }
+            Some(decoded)
+        }
+    };
+    match result.route {
+        PointerRoute::MouseReport if input.is_some() => {}
+        PointerRoute::Ignored if input.is_none() => {}
+        PointerRoute::MouseReport => return Err("surface.pointer mouse-report result has no input".into()),
+        PointerRoute::Ignored => return Err("surface.pointer ignored result retains input".into()),
+    }
+    Ok(result)
+}
+
+pub fn encode_pointer_engine_result(result: &PointerEngineResult) -> Result<serde_json::Value, String> {
+    decode_pointer_engine_result(&serde_json::to_value(result)
+        .map_err(|error| format!("surface.pointer engine result could not encode: {error}"))?)
+        .and_then(|valid| serde_json::to_value(valid)
+            .map_err(|error| format!("surface.pointer engine result could not encode: {error}")))
+}
+
 /// One channel message. Ports travel out of band as mach descriptors; `port_count` states how
 /// many rights ride beside the bytes of each kind.
 #[derive(Debug, Clone, PartialEq)]

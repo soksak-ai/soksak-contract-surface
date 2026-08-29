@@ -2,7 +2,7 @@
 
 > 번역본. 정본은 [SPEC.md](SPEC.md) 이며 이 문서는 독립 규칙을 정의하지 않는다.
 
-계약 id: **`soksak-spec-sidecar-surface`**, 버전 **0.0.6**.
+계약 id: **`soksak-spec-sidecar-surface`**, 버전 **0.0.7**.
 
 렌더 사이드카는 터미널 그리드 미러를 소유하고 그것을 칠한다. 애플리케이션은 창과 입력 장치를
 소유한다. 이 계약은 그 사이의 이음매다: 사이드카가 채우는 IOSurface 링, 링과 프레임 신호를 나르는
@@ -86,6 +86,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 | `surface.preedit` | `pane, text, caret` | `{}` — 오버레이로만 그리고 PTY 에 쓰지 않는다 |
 | `surface.selection` | `window, pane, action: "read"` \| `action: "clear"` \| `action: "gesture", gestureId, phase, kind, point{row,col,side}, modifiers{shift,alt,control,meta}` | 완전한 `SelectionSnapshot` |
 | `surface.hover` | `pane, row, col` 또는 `pane, clear: true` | `{}` — 링크 밑줄 |
+| `surface.pointer` | `window, pane, point{x,y}, phase: "down"\|"move"\|"up", button: "none"\|"left"\|"middle"\|"right", clickCount, modifiers{shift,alt,control,meta}` | engine 결과: `route: "mouse-report"\|"ignored", dataB64` |
 | `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine 결과: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — 현재 offset 의 viewport |
@@ -121,6 +122,13 @@ null `dataB64`를 반환합니다. `mouse-report`와 `alternate-scroll`은 비�
 scroll 상태를 반환합니다. `ignored`는 세 effect field를 모두 null로 반환합니다. Application이 이 응답을
 검증하고 decode한 input을 PTY에 쓰는 유일한 process입니다. Core와 Plugin은 mouse escape sequence를
 encode하지 않습니다.
+
+`surface.pointer`도 surface 기준 CSS 좌표와 모든 modifier를 보존합니다. Down과 up은 물리 button 하나와
+양수 click count를 요구합니다. Move는 누른 button을 지정하거나 button 없는 motion이면 `none`을
+지정합니다. Render owner는 현재 1000/1002/1003 mode와 phase를 비교해 정확히 하나의 route를
+반환합니다. `mouse-report`는 비어 있지 않은 base64 input을, `ignored`는 null input을 반환합니다.
+Shift는 terminal mouse capture를 우회해 Plugin의 local selection을 유지합니다. Application은 반환
+byte를 검증하고 wheel input과 같은 단일 PTY writer를 통해 기록합니다.
 
 ## 6. 존재
 

@@ -11,7 +11,7 @@ import (
 func CommandNames() []string {
 	return []string{
 		"surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
-		"surface.selection", "surface.hover", "surface.wheel", "surface.scroll", "surface.read",
+		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.scroll", "surface.read",
 		"surface.theme", "surface.close",
 	}
 }
@@ -95,6 +95,157 @@ const (
 
 type SurfacePoint struct {
 	X, Y float64
+}
+
+type PointerPhase string
+
+const (
+	PointerDown PointerPhase = "down"
+	PointerMove PointerPhase = "move"
+	PointerUp   PointerPhase = "up"
+)
+
+type PointerButton string
+
+const (
+	PointerNone   PointerButton = "none"
+	PointerLeft   PointerButton = "left"
+	PointerMiddle PointerButton = "middle"
+	PointerRight  PointerButton = "right"
+)
+
+type PointerRequest struct {
+	Window     string
+	Pane       string
+	Point      SurfacePoint
+	Phase      PointerPhase
+	Button     PointerButton
+	ClickCount uint8
+	Modifiers  SelectionModifiers
+}
+
+type PointerRoute string
+
+const (
+	PointerMouseReport PointerRoute = "mouse-report"
+	PointerIgnored     PointerRoute = "ignored"
+)
+
+type PointerEngineResult struct {
+	Route   PointerRoute
+	DataB64 *string
+}
+
+func ValidatePointer(request map[string]any) (PointerRequest, error) {
+	if err := exactKeys("surface.pointer", request,
+		"window", "pane", "point", "phase", "button", "clickCount", "modifiers"); err != nil {
+		return PointerRequest{}, err
+	}
+	window, err := text(request, "window")
+	if err != nil {
+		return PointerRequest{}, err
+	}
+	pane, err := text(request, "pane")
+	if err != nil {
+		return PointerRequest{}, err
+	}
+	pointValue, err := object(request, "point")
+	if err != nil {
+		return PointerRequest{}, err
+	}
+	if err := exactKeys("surface.pointer point", pointValue, "x", "y"); err != nil {
+		return PointerRequest{}, err
+	}
+	x, err := finiteNumber(pointValue, "x")
+	if err != nil || x < 0 {
+		return PointerRequest{}, fmt.Errorf("surface.pointer point.x is not a non-negative finite number")
+	}
+	y, err := finiteNumber(pointValue, "y")
+	if err != nil || y < 0 {
+		return PointerRequest{}, fmt.Errorf("surface.pointer point.y is not a non-negative finite number")
+	}
+	phaseText, err := text(request, "phase")
+	if err != nil {
+		return PointerRequest{}, err
+	}
+	phase := PointerPhase(phaseText)
+	if phase != PointerDown && phase != PointerMove && phase != PointerUp {
+		return PointerRequest{}, fmt.Errorf("surface.pointer phase is not down, move or up")
+	}
+	buttonText, err := text(request, "button")
+	if err != nil {
+		return PointerRequest{}, err
+	}
+	button := PointerButton(buttonText)
+	if button != PointerNone && button != PointerLeft && button != PointerMiddle && button != PointerRight {
+		return PointerRequest{}, fmt.Errorf("surface.pointer button is invalid")
+	}
+	if phase != PointerMove && button == PointerNone {
+		return PointerRequest{}, fmt.Errorf("surface.pointer down/up button is none")
+	}
+	clickCount, err := nonNegativeInteger(request, "clickCount")
+	if err != nil || clickCount > 3 || (phase != PointerMove && clickCount == 0) {
+		return PointerRequest{}, fmt.Errorf("surface.pointer clickCount is invalid")
+	}
+	modifierValue, err := object(request, "modifiers")
+	if err != nil {
+		return PointerRequest{}, err
+	}
+	if err := exactKeys("surface.pointer modifiers", modifierValue, "shift", "alt", "control", "meta"); err != nil {
+		return PointerRequest{}, err
+	}
+	modifiers := SelectionModifiers{}
+	if modifiers.Shift, err = boolean(modifierValue, "shift"); err != nil {
+		return PointerRequest{}, err
+	}
+	if modifiers.Alt, err = boolean(modifierValue, "alt"); err != nil {
+		return PointerRequest{}, err
+	}
+	if modifiers.Control, err = boolean(modifierValue, "control"); err != nil {
+		return PointerRequest{}, err
+	}
+	if modifiers.Meta, err = boolean(modifierValue, "meta"); err != nil {
+		return PointerRequest{}, err
+	}
+	return PointerRequest{
+		Window: window, Pane: pane, Point: SurfacePoint{X: x, Y: y}, Phase: phase,
+		Button: button, ClickCount: uint8(clickCount), Modifiers: modifiers,
+	}, nil
+}
+
+func ValidatePointerEngineResult(answer map[string]any) (PointerEngineResult, error) {
+	if err := exactKeys("surface.pointer engine answer", answer, "route", "dataB64"); err != nil {
+		return PointerEngineResult{}, err
+	}
+	routeText, err := text(answer, "route")
+	if err != nil {
+		return PointerEngineResult{}, err
+	}
+	result := PointerEngineResult{Route: PointerRoute(routeText)}
+	if answer["dataB64"] != nil {
+		value, valid := answer["dataB64"].(string)
+		if !valid || value == "" {
+			return PointerEngineResult{}, fmt.Errorf("surface.pointer engine answer dataB64 is not a non-empty string")
+		}
+		decoded, decodeErr := base64.StdEncoding.DecodeString(value)
+		if decodeErr != nil || len(decoded) == 0 {
+			return PointerEngineResult{}, fmt.Errorf("surface.pointer engine answer dataB64 is not non-empty base64")
+		}
+		result.DataB64 = &value
+	}
+	switch result.Route {
+	case PointerMouseReport:
+		if result.DataB64 == nil {
+			return PointerEngineResult{}, fmt.Errorf("surface.pointer mouse-report answer has no input")
+		}
+	case PointerIgnored:
+		if result.DataB64 != nil {
+			return PointerEngineResult{}, fmt.Errorf("surface.pointer ignored answer retains input")
+		}
+	default:
+		return PointerEngineResult{}, fmt.Errorf("surface.pointer engine answer route is invalid")
+	}
+	return result, nil
 }
 
 // WheelRequest preserves the input device's coordinate, unit and modifier facts. The render owner
