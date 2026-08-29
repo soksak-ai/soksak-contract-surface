@@ -92,6 +92,7 @@ missing or malformed field is refused with its name.
 | `surface.hover` | `pane, row, col` or `pane, clear: true` | `{}` — link underline |
 | `surface.pointer` | `window, pane, point{x,y}, phase: "down"\|"move"\|"up", button: "none"\|"left"\|"middle"\|"right", clickCount, modifiers{shift,alt,control,meta}` | engine result: `route: "mouse-report"\|"ignored", dataB64` |
 | `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine result: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
+| `surface.focus` | `window, pane, focused` | `focused, cursorPresentation: "engine"\|"hollow-block"` |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — the viewport at the current offset |
 | `surface.theme` | `pane, theme{…}` | `{}` — no ring rebuild |
@@ -127,6 +128,12 @@ unknown field is refused. The render owner chooses exactly one route from its cu
 `alternate-scroll` return non-empty base64 PTY input and null scroll state. `ignored` returns all
 three effect fields null. The application validates that answer and is the only process that writes
 decoded input to the PTY. Core and the Plugin do not encode mouse escape sequences.
+
+`surface.focus` is presentation state, not terminal parser state. Focused restores the engine-owned
+cursor shape and blink policy. Unfocused stops the renderer animation clock and paints one steady
+hollow block while preserving the engine shape/blink value that will return on focus. The request
+is owner-bound by `window` and `pane`; a missing boolean or a contradictory engine answer is
+invalid. No adapter parses DECSCUSR or private mode 12 to implement this policy.
 
 `surface.pointer` also preserves surface-relative CSS coordinates and all modifiers. A down or up
 names one physical button and has a positive click count. Move may name the held button, or `none`
