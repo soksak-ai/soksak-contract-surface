@@ -11,9 +11,68 @@ import (
 func CommandNames() []string {
 	return []string{
 		"surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
-		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.scroll", "surface.read",
+		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.focus", "surface.scroll", "surface.read",
 		"surface.theme", "surface.close",
 	}
+}
+
+type CursorPresentation string
+
+const (
+	CursorEngine      CursorPresentation = "engine"
+	CursorHollowBlock CursorPresentation = "hollow-block"
+)
+
+type FocusRequest struct {
+	Window, Pane string
+	Focused      bool
+}
+
+type FocusEngineResult struct {
+	Focused            bool
+	CursorPresentation CursorPresentation
+}
+
+func ValidateFocus(request map[string]any) (FocusRequest, error) {
+	if err := exactKeys("surface.focus", request, "window", "pane", "focused"); err != nil {
+		return FocusRequest{}, err
+	}
+	window, err := text(request, "window")
+	if err != nil {
+		return FocusRequest{}, err
+	}
+	pane, err := text(request, "pane")
+	if err != nil {
+		return FocusRequest{}, err
+	}
+	focused, err := boolean(request, "focused")
+	if err != nil {
+		return FocusRequest{}, err
+	}
+	return FocusRequest{Window: window, Pane: pane, Focused: focused}, nil
+}
+
+func ValidateFocusEngineResult(answer map[string]any) (FocusEngineResult, error) {
+	if err := exactKeys("surface.focus engine answer", answer, "focused", "cursorPresentation"); err != nil {
+		return FocusEngineResult{}, err
+	}
+	focused, err := boolean(answer, "focused")
+	if err != nil {
+		return FocusEngineResult{}, err
+	}
+	presentationText, err := text(answer, "cursorPresentation")
+	if err != nil {
+		return FocusEngineResult{}, err
+	}
+	presentation := CursorPresentation(presentationText)
+	want := CursorHollowBlock
+	if focused {
+		want = CursorEngine
+	}
+	if presentation != want {
+		return FocusEngineResult{}, fmt.Errorf("surface.focus cursor presentation contradicts focused state")
+	}
+	return FocusEngineResult{Focused: focused, CursorPresentation: presentation}, nil
 }
 
 // FontSpec is the face the sidecar measures cells from.
