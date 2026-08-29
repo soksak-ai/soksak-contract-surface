@@ -31,23 +31,28 @@ const HEADER_BYTES: usize = 8;
 /// One damage region in cells: (x, y, w, h).
 pub type DamageRect = (u16, u16, u16, u16);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SelectionPhase { Begin, Update, End }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SelectionKind { Simple, Block, Semantic, Line, Extend }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CellSide { Left, Right }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SelectionPoint {
     pub row: u16,
     pub col: u16,
     pub side: CellSide,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SelectionModifiers {
     pub shift: bool,
     pub alt: bool,
@@ -69,7 +74,8 @@ pub enum SelectionRequest {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SelectionSnapshot {
     pub active: bool,
     pub text: String,
@@ -78,6 +84,68 @@ pub struct SelectionSnapshot {
     pub focus: Option<SelectionPoint>,
     pub gesture_id: Option<String>,
     pub sequence: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(tag = "action", rename_all = "lowercase", rename_all_fields = "camelCase", deny_unknown_fields)]
+enum SelectionRequestWire {
+    Read { pane: String },
+    Clear { pane: String },
+    Gesture {
+        pane: String,
+        gesture_id: String,
+        phase: SelectionPhase,
+        kind: SelectionKind,
+        point: SelectionPoint,
+        modifiers: SelectionModifiers,
+    },
+}
+
+pub fn decode_selection_request(value: &serde_json::Value) -> Result<SelectionRequest, String> {
+    let wire: SelectionRequestWire = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.selection request is invalid: {error}"))?;
+    let request = match wire {
+        SelectionRequestWire::Read { pane } => SelectionRequest::Read { pane },
+        SelectionRequestWire::Clear { pane } => SelectionRequest::Clear { pane },
+        SelectionRequestWire::Gesture { pane, gesture_id, phase, kind, point, modifiers } => {
+            if gesture_id.is_empty() {
+                return Err("surface.selection gestureId is empty".into());
+            }
+            SelectionRequest::Gesture { pane, gesture_id, phase, kind, point, modifiers }
+        }
+    };
+    let pane = match &request {
+        SelectionRequest::Read { pane } | SelectionRequest::Clear { pane }
+        | SelectionRequest::Gesture { pane, .. } => pane,
+    };
+    if pane.is_empty() {
+        return Err("surface.selection pane is empty".into());
+    }
+    Ok(request)
+}
+
+pub fn decode_selection_snapshot(value: &serde_json::Value) -> Result<SelectionSnapshot, String> {
+    let snapshot: SelectionSnapshot = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.selection snapshot is invalid: {error}"))?;
+    if snapshot.active {
+        if snapshot.kind.is_none() || snapshot.anchor.is_none() || snapshot.focus.is_none()
+            || snapshot.gesture_id.as_deref().unwrap_or_default().is_empty()
+        {
+            return Err("surface.selection active snapshot is incomplete".into());
+        }
+    } else if !snapshot.text.is_empty() || snapshot.kind.is_some() || snapshot.anchor.is_some()
+        || snapshot.focus.is_some() || snapshot.gesture_id.is_some()
+    {
+        return Err("surface.selection inactive snapshot retains selection state".into());
+    }
+    Ok(snapshot)
+}
+
+pub fn encode_selection_snapshot(snapshot: &SelectionSnapshot) -> Result<serde_json::Value, String> {
+    decode_selection_snapshot(&serde_json::to_value(snapshot)
+        .map_err(|error| format!("surface.selection snapshot could not encode: {error}"))?)
+        .and_then(|valid| serde_json::to_value(valid)
+            .map_err(|error| format!("surface.selection snapshot could not encode: {error}")))
 }
 
 /// One channel message. Ports travel out of band as mach descriptors; `port_count` states how
