@@ -62,6 +62,44 @@ pub struct SelectionModifiers {
     pub meta: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CursorPresentation { Engine, HollowBlock }
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FocusRequest {
+    pub window: String,
+    pub pane: String,
+    pub focused: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FocusEngineResult {
+    pub focused: bool,
+    pub cursor_presentation: CursorPresentation,
+}
+
+pub fn decode_focus_request(value: &serde_json::Value) -> Result<FocusRequest, String> {
+    let request: FocusRequest = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.focus request is invalid: {error}"))?;
+    if request.window.is_empty() || request.pane.is_empty() {
+        return Err("surface.focus requires window and pane".into());
+    }
+    Ok(request)
+}
+
+pub fn decode_focus_engine_result(value: &serde_json::Value) -> Result<FocusEngineResult, String> {
+    let result: FocusEngineResult = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.focus engine result is invalid: {error}"))?;
+    let expected = if result.focused { CursorPresentation::Engine } else { CursorPresentation::HollowBlock };
+    if result.cursor_presentation != expected {
+        return Err("surface.focus cursor presentation contradicts focused state".into());
+    }
+    Ok(result)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectionRequest {
     Read { window: String, pane: String },

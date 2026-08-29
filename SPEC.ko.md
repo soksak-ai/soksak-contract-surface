@@ -88,6 +88,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 | `surface.hover` | `pane, row, col` 또는 `pane, clear: true` | `{}` — 링크 밑줄 |
 | `surface.pointer` | `window, pane, point{x,y}, phase: "down"\|"move"\|"up", button: "none"\|"left"\|"middle"\|"right", clickCount, modifiers{shift,alt,control,meta}` | engine 결과: `route: "mouse-report"\|"ignored", dataB64` |
 | `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine 결과: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
+| `surface.focus` | `window, pane, focused` | `focused, cursorPresentation: "engine"\|"hollow-block"` |
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — 현재 offset 의 viewport |
 | `surface.theme` | `pane, theme{…}` | `{}` — 링 재생성 없음 |
@@ -122,6 +123,12 @@ null `dataB64`를 반환합니다. `mouse-report`와 `alternate-scroll`은 비�
 scroll 상태를 반환합니다. `ignored`는 세 effect field를 모두 null로 반환합니다. Application이 이 응답을
 검증하고 decode한 input을 PTY에 쓰는 유일한 process입니다. Core와 Plugin은 mouse escape sequence를
 encode하지 않습니다.
+
+`surface.focus`는 terminal parser state가 아니라 presentation state입니다. Focused에서는 engine이
+소유한 cursor shape와 blink policy를 복원합니다. Unfocused에서는 renderer animation clock을 멈추고
+steady hollow block 하나를 그리되, 다시 focus될 때 돌아올 engine shape/blink 값은 보존합니다. 요청은
+`window`와 `pane`에 묶이며 boolean 누락이나 focus와 모순되는 engine answer를 거부합니다. Adapter가 이
+policy를 위해 DECSCUSR나 private mode 12를 다시 parse하지 않습니다.
 
 `surface.pointer`도 surface 기준 CSS 좌표와 모든 modifier를 보존합니다. Down과 up은 물리 button 하나와
 양수 click count를 요구합니다. Move는 누른 button을 지정하거나 button 없는 motion이면 `none`을
