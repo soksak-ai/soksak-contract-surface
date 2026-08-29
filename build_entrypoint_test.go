@@ -20,4 +20,7 @@ func TestMakeOwnsSurfaceContractCommands(t *testing.T) {
 	if strings.Contains(source, "GO_VERSION :=") {
 		t.Error("Makefile duplicates Go metadata")
 	}
+	if strings.Contains(source, "PATH=") || strings.Contains(source, "$$HOME/.cargo") {
+		t.Error("Makefile overrides the login-shell tool selection")
+	}
 }
