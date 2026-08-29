@@ -31,6 +31,55 @@ const HEADER_BYTES: usize = 8;
 /// One damage region in cells: (x, y, w, h).
 pub type DamageRect = (u16, u16, u16, u16);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionPhase { Begin, Update, End }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionKind { Simple, Block, Semantic, Line, Extend }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CellSide { Left, Right }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectionPoint {
+    pub row: u16,
+    pub col: u16,
+    pub side: CellSide,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SelectionModifiers {
+    pub shift: bool,
+    pub alt: bool,
+    pub control: bool,
+    pub meta: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectionRequest {
+    Read { pane: String },
+    Clear { pane: String },
+    Gesture {
+        pane: String,
+        gesture_id: String,
+        phase: SelectionPhase,
+        kind: SelectionKind,
+        point: SelectionPoint,
+        modifiers: SelectionModifiers,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectionSnapshot {
+    pub active: bool,
+    pub text: String,
+    pub kind: Option<SelectionKind>,
+    pub anchor: Option<SelectionPoint>,
+    pub focus: Option<SelectionPoint>,
+    pub gesture_id: Option<String>,
+    pub sequence: u64,
+}
+
 /// One channel message. Ports travel out of band as mach descriptors; `port_count` states how
 /// many rights ride beside the bytes of each kind.
 #[derive(Debug, Clone, PartialEq)]
