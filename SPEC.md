@@ -1,6 +1,6 @@
 # soksak-contract-surface — sidecar-rendered terminal surfaces
 
-Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.4**.
+Contract id: **`soksak-spec-sidecar-surface`**, version **0.0.5**.
 
 A render sidecar owns a terminal grid mirror and paints it. The application owns the window and
 the input devices. This contract is the seam between them: an IOSurface ring the sidecar fills,
