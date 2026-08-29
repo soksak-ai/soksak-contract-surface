@@ -28,3 +28,16 @@ func TestSelectionContractDeclaresTheWholeGestureState(t *testing.T) {
 		t.Error("surface.selection still declares the replaced from/to request")
 	}
 }
+
+func TestRustHalfOwnsTheSameStrictSelectionDecoder(t *testing.T) {
+	rust, err := os.ReadFile("src/lib.rs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(rust)
+	for _, required := range []string{"decode_selection_request", "decode_selection_snapshot", "deny_unknown_fields"} {
+		if !strings.Contains(source, required) {
+			t.Errorf("Rust selection contract omits %s", required)
+		}
+	}
+}
