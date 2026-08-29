@@ -4,7 +4,7 @@ import "testing"
 
 func gestureRequest() map[string]any {
 	return map[string]any{
-		"pane": "tab-a.1", "action": "gesture", "gestureId": "sel-1",
+		"window": "win-a", "pane": "tab-a.1", "action": "gesture", "gestureId": "sel-1",
 		"phase": "begin", "kind": "simple",
 		"point": map[string]any{"row": float64(2), "col": float64(3), "side": "right"},
 		"modifiers": map[string]any{
@@ -14,7 +14,7 @@ func gestureRequest() map[string]any {
 }
 
 func TestSelectionRequestUnionIsExact(t *testing.T) {
-	read, err := ValidateSelection(map[string]any{"pane": "tab-a.1", "action": "read"})
+	read, err := ValidateSelection(map[string]any{"window": "win-a", "pane": "tab-a.1", "action": "read"})
 	if err != nil || read.Action != SelectionRead {
 		t.Fatalf("read selection = %#v, %v", read, err)
 	}
@@ -25,6 +25,11 @@ func TestSelectionRequestUnionIsExact(t *testing.T) {
 	if gesture.GestureID != "sel-1" || gesture.Phase != SelectionBegin || gesture.Kind != SelectionSimple ||
 		gesture.Point == nil || gesture.Point.Row != 2 || gesture.Point.Col != 3 || gesture.Point.Side != CellRight {
 		t.Fatalf("gesture selection = %#v", gesture)
+	}
+	missingOwner := gestureRequest()
+	delete(missingOwner, "window")
+	if _, err := ValidateSelection(missingOwner); err == nil {
+		t.Fatal("selection without its window owner was accepted")
 	}
 
 	old := map[string]any{

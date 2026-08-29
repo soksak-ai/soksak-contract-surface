@@ -62,9 +62,10 @@ pub struct SelectionModifiers {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectionRequest {
-    Read { pane: String },
-    Clear { pane: String },
+    Read { window: String, pane: String },
+    Clear { window: String, pane: String },
     Gesture {
+        window: String,
         pane: String,
         gesture_id: String,
         phase: SelectionPhase,
@@ -89,9 +90,10 @@ pub struct SelectionSnapshot {
 #[derive(serde::Deserialize)]
 #[serde(tag = "action", rename_all = "lowercase", rename_all_fields = "camelCase", deny_unknown_fields)]
 enum SelectionRequestWire {
-    Read { pane: String },
-    Clear { pane: String },
+    Read { window: String, pane: String },
+    Clear { window: String, pane: String },
     Gesture {
+        window: String,
         pane: String,
         gesture_id: String,
         phase: SelectionPhase,
@@ -105,19 +107,22 @@ pub fn decode_selection_request(value: &serde_json::Value) -> Result<SelectionRe
     let wire: SelectionRequestWire = serde_json::from_value(value.clone())
         .map_err(|error| format!("surface.selection request is invalid: {error}"))?;
     let request = match wire {
-        SelectionRequestWire::Read { pane } => SelectionRequest::Read { pane },
-        SelectionRequestWire::Clear { pane } => SelectionRequest::Clear { pane },
-        SelectionRequestWire::Gesture { pane, gesture_id, phase, kind, point, modifiers } => {
+        SelectionRequestWire::Read { window, pane } => SelectionRequest::Read { window, pane },
+        SelectionRequestWire::Clear { window, pane } => SelectionRequest::Clear { window, pane },
+        SelectionRequestWire::Gesture { window, pane, gesture_id, phase, kind, point, modifiers } => {
             if gesture_id.is_empty() {
                 return Err("surface.selection gestureId is empty".into());
             }
-            SelectionRequest::Gesture { pane, gesture_id, phase, kind, point, modifiers }
+            SelectionRequest::Gesture { window, pane, gesture_id, phase, kind, point, modifiers }
         }
     };
-    let pane = match &request {
-        SelectionRequest::Read { pane } | SelectionRequest::Clear { pane }
-        | SelectionRequest::Gesture { pane, .. } => pane,
+    let (window, pane) = match &request {
+        SelectionRequest::Read { window, pane } | SelectionRequest::Clear { window, pane }
+        | SelectionRequest::Gesture { window, pane, .. } => (window, pane),
     };
+    if window.is_empty() {
+        return Err("surface.selection window is empty".into());
+    }
     if pane.is_empty() {
         return Err("surface.selection pane is empty".into());
     }

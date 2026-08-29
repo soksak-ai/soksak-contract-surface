@@ -87,6 +87,7 @@ type SelectionModifiers struct {
 // SelectionRequest is the closed surface.selection request union. GestureID is an opaque owner
 // identity: begin claims it, and update/end for any other identity are refused as STALE_GESTURE.
 type SelectionRequest struct {
+	Window    string
 	Pane      string
 	Action    SelectionAction
 	GestureID string
@@ -110,6 +111,10 @@ type SelectionSnapshot struct {
 
 // ValidateSelection checks the exact discriminated request shape.
 func ValidateSelection(request map[string]any) (SelectionRequest, error) {
+	window, err := text(request, "window")
+	if err != nil {
+		return SelectionRequest{}, err
+	}
 	pane, err := text(request, "pane")
 	if err != nil {
 		return SelectionRequest{}, err
@@ -119,16 +124,16 @@ func ValidateSelection(request map[string]any) (SelectionRequest, error) {
 		return SelectionRequest{}, err
 	}
 	action := SelectionAction(actionText)
-	selection := SelectionRequest{Pane: pane, Action: action}
+	selection := SelectionRequest{Window: window, Pane: pane, Action: action}
 	switch action {
 	case SelectionRead, SelectionClear:
-		if err := exactKeys("surface.selection", request, "pane", "action"); err != nil {
+		if err := exactKeys("surface.selection", request, "window", "pane", "action"); err != nil {
 			return SelectionRequest{}, err
 		}
 		return selection, nil
 	case SelectionGesture:
 		if err := exactKeys("surface.selection", request,
-			"pane", "action", "gestureId", "phase", "kind", "point", "modifiers"); err != nil {
+			"window", "pane", "action", "gestureId", "phase", "kind", "point", "modifiers"); err != nil {
 			return SelectionRequest{}, err
 		}
 		if selection.GestureID, err = text(request, "gestureId"); err != nil {

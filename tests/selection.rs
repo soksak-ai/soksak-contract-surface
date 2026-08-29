@@ -6,11 +6,13 @@ use soksak_contract_surface::{
 
 #[test]
 fn request_union_rejects_partial_and_replaced_shapes() {
-    let read = decode_selection_request(&json!({"pane":"tab-a.1","action":"read"})).unwrap();
-    assert!(matches!(read, SelectionRequest::Read { pane } if pane == "tab-a.1"));
+    let read =
+        decode_selection_request(&json!({"window":"win-a","pane":"tab-a.1","action":"read"}))
+            .unwrap();
+    assert!(matches!(read, SelectionRequest::Read { pane, .. } if pane == "tab-a.1"));
 
     let gesture = decode_selection_request(&json!({
-        "pane":"tab-a.1", "action":"gesture", "gestureId":"sel-1",
+        "window":"win-a", "pane":"tab-a.1", "action":"gesture", "gestureId":"sel-1",
         "phase":"begin", "kind":"simple",
         "point":{"row":2,"col":3,"side":"right"},
         "modifiers":{"shift":false,"alt":false,"control":false,"meta":false}
@@ -31,12 +33,12 @@ fn request_union_rejects_partial_and_replaced_shapes() {
     ));
 
     assert!(decode_selection_request(&json!({
-        "pane":"tab-a.1", "action":"gesture",
+        "window":"win-a", "pane":"tab-a.1", "action":"gesture",
         "from":{"row":0,"col":0}, "to":{"row":0,"col":1}
     }))
     .is_err());
     assert!(decode_selection_request(&json!({
-        "pane":"tab-a.1", "action":"gesture", "gestureId":"sel-1",
+        "window":"win-a", "pane":"tab-a.1", "action":"gesture", "gestureId":"sel-1",
         "phase":"begin", "kind":"simple",
         "point":{"row":2,"col":3,"side":"right"},
         "modifiers":{"shift":false,"alt":false,"control":false}
