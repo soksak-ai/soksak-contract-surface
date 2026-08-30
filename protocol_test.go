@@ -161,7 +161,7 @@ func TestValidateOpenNamesTheFirstMissingField(t *testing.T) {
 
 func TestCommandNamesAreTheContract(t *testing.T) {
 	want := []string{
-		"surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
+		"surface.measure", "surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
 		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.focus", "surface.scroll", "surface.read",
 		"surface.theme", "surface.close",
 	}

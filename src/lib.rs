@@ -33,6 +33,58 @@ const HEADER_BYTES: usize = 8;
 /// One damage region in cells: (x, y, w, h).
 pub type DamageRect = (u16, u16, u16, u16);
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MeasureFont {
+    pub family: String,
+    pub pt: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MeasureRequest {
+    pub pixel_w: f64,
+    pub pixel_h: f64,
+    pub scale: f64,
+    pub font: MeasureFont,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MeasureResult {
+    pub cols: u16,
+    pub rows: u16,
+    pub cell_w: f64,
+    pub cell_h: f64,
+}
+
+pub fn decode_measure_request(value: &serde_json::Value) -> Result<MeasureRequest, String> {
+    let request: MeasureRequest = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.measure request is invalid: {error}"))?;
+    if request.font.family.is_empty()
+        || !positive_finite(request.pixel_w)
+        || !positive_finite(request.pixel_h)
+        || !positive_finite(request.scale)
+        || !positive_finite(request.font.pt)
+    {
+        return Err("surface.measure request values must be non-empty, positive and finite".into());
+    }
+    Ok(request)
+}
+
+pub fn decode_measure_result(value: &serde_json::Value) -> Result<MeasureResult, String> {
+    let result: MeasureResult = serde_json::from_value(value.clone())
+        .map_err(|error| format!("surface.measure result is invalid: {error}"))?;
+    if result.cols == 0 || result.rows == 0
+        || !positive_finite(result.cell_w) || !positive_finite(result.cell_h)
+    {
+        return Err("surface.measure result values must be positive and finite".into());
+    }
+    Ok(result)
+}
+
+fn positive_finite(value: f64) -> bool { value > 0.0 && value.is_finite() }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SelectionPhase { Begin, Update, End }

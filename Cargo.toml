@@ -5,7 +5,7 @@
 # serves the application. Both decode the same committed bytes.
 [package]
 name = "soksak-contract-surface"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2024"
 publish = false
 description = "The soksak-spec-sidecar-surface contract: channel name, message wire, ring rule and wire fixtures."

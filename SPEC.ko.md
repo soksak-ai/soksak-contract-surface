@@ -80,6 +80,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 
 | 명령 | 요청 | 답 |
 | --- | --- | --- |
+| `surface.measure` | `pixelW, pixelH, scale, font{family, pt}` | `cols, rows, cellW, cellH` — pane, ring, process를 만들지 않는다 |
 | `surface.open` | `identifier, window, pane, pixelW, pixelH, scale, font{family, pt}, theme{fg, bg, cursor, cursorAccent, selectionBg, selectionFg, ansi[256]}, cwd?` | `cols, rows, cellW, cellH` — 링은 채널로 뒤따른다 |
 | `surface.resize` | `pane, pixelW, pixelH, scale` | `cols, rows` |
 | `surface.setPaused` | `pane, paused` | `{}` — paused 동안 프레임 없음 |
@@ -95,7 +96,10 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 | `surface.close` | `pane` | `{}` — `ended` 로 링을 끝낸다 |
 
 `cols`/`rows` 는 사이드카의 답이지 애플리케이션의 추측이 아니다. 폰트를 측정한 쪽이 사이드카다.
-애플리케이션은 답을 받은 숫자로 `pty.resize` 를 구동한다.
+`surface.measure`는 mirror, pane, ring, PTY를 만들지 않는다. 새 pane은 먼저 이 명령으로 측정하고 같은
+숫자를 observer 준비, `pty.open`, engine 구독에 전달한다. 그 다음 `surface.open`은 같은 pixel/font
+사실로 ring을 만든다. Process 시작 뒤 resize는 이후 geometry 변경에만 사용하며 새 shell의 초기 크기를
+정하는 방법이 아니다.
 
 `surface.selection`은 strict discriminated union이다. `window`와 `pane`은 selection owner 주소이며
 모든 action에서 필수다. `phase`는 `begin|update|end`, `kind`는

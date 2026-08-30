@@ -84,6 +84,7 @@ missing or malformed field is refused with its name.
 
 | command | request | answer |
 | --- | --- | --- |
+| `surface.measure` | `pixelW, pixelH, scale, font{family, pt}` | `cols, rows, cellW, cellH` — no pane, ring or process is created |
 | `surface.open` | `identifier, window, pane, pixelW, pixelH, scale, font{family, pt}, theme{fg, bg, cursor, cursorAccent, selectionBg, selectionFg, ansi[256]}, cwd?` | `cols, rows, cellW, cellH` — the ring follows on the channel |
 | `surface.resize` | `pane, pixelW, pixelH, scale` | `cols, rows` |
 | `surface.setPaused` | `pane, paused` | `{}` — paused produces no frame |
@@ -99,7 +100,11 @@ missing or malformed field is refused with its name.
 | `surface.close` | `pane` | `{}` — ends the ring with `ended` |
 
 `cols`/`rows` are the sidecar's answer, never the application's guess: the sidecar measured the
-font. The application drives `pty.resize` with the answered numbers.
+font. `surface.measure` is side-effect free and is valid before a mirror, pane, ring or PTY exists.
+For a fresh pane the application must measure first and pass those exact numbers to observer
+preparation, `pty.open`, and engine subscription. `surface.open` then creates the ring with the same
+pixel/font facts. A resize after process start is only a later geometry change; it is not the way a
+fresh shell receives its initial size.
 
 `surface.selection` is a strict discriminated union. `window` and `pane` are the selection owner
 address and are required on every action. `phase` is `begin|update|end`; `kind` is

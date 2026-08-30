@@ -10,10 +10,128 @@ import (
 // CommandNames is the closed surface.* table of SPEC.md §5, in its order.
 func CommandNames() []string {
 	return []string{
-		"surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
+		"surface.measure", "surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
 		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.focus", "surface.scroll", "surface.read",
 		"surface.theme", "surface.close",
 	}
+}
+
+// Measure is the pixel and font input used to determine a terminal grid before a process starts.
+type Measure struct {
+	PixelW float64
+	PixelH float64
+	Scale  float64
+	Font   FontSpec
+}
+
+// MeasureResult is the exact grid and physical cell size selected by the renderer.
+type MeasureResult struct {
+	Cols  uint64
+	Rows  uint64
+	CellW float64
+	CellH float64
+}
+
+// ValidateMeasure validates one surface.measure request.
+func ValidateMeasure(request map[string]any) (Measure, error) {
+	if err := exactKeys("surface.measure", request, "pixelW", "pixelH", "scale", "font"); err != nil {
+		return Measure{}, err
+	}
+	var measured Measure
+	var err error
+	if measured.PixelW, err = finiteNumber(request, "pixelW"); err != nil || measured.PixelW <= 0 {
+		if err != nil {
+			return Measure{}, err
+		}
+		return Measure{}, fmt.Errorf("surface.measure pixelW is not positive")
+	}
+	if measured.PixelH, err = finiteNumber(request, "pixelH"); err != nil || measured.PixelH <= 0 {
+		if err != nil {
+			return Measure{}, err
+		}
+		return Measure{}, fmt.Errorf("surface.measure pixelH is not positive")
+	}
+	if measured.Scale, err = finiteNumber(request, "scale"); err != nil || measured.Scale <= 0 {
+		if err != nil {
+			return Measure{}, err
+		}
+		return Measure{}, fmt.Errorf("surface.measure scale is not positive")
+	}
+	font, err := object(request, "font")
+	if err != nil {
+		return Measure{}, err
+	}
+	if err := exactKeys("surface.measure font", font, "family", "pt"); err != nil {
+		return Measure{}, err
+	}
+	if measured.Font.Family, err = labeled(font, "family", "font.family"); err != nil {
+		return Measure{}, err
+	}
+	if measured.Font.Pt, err = labeledNumber(font, "pt", "font.pt"); err != nil ||
+		!isPositiveFinite(measured.Font.Pt) {
+		if err != nil {
+			return Measure{}, err
+		}
+		return Measure{}, fmt.Errorf("surface.measure font.pt is not positive and finite")
+	}
+	return measured, nil
+}
+
+// ValidateMeasureResult validates one surface.measure result.
+func ValidateMeasureResult(answer map[string]any) (MeasureResult, error) {
+	if err := exactKeys("surface.measure engine answer", answer, "cols", "rows", "cellW", "cellH"); err != nil {
+		return MeasureResult{}, err
+	}
+	cols, err := positiveCount(answer, "cols")
+	if err != nil {
+		return MeasureResult{}, err
+	}
+	rows, err := positiveCount(answer, "rows")
+	if err != nil {
+		return MeasureResult{}, err
+	}
+	cellW, err := finiteNumber(answer, "cellW")
+	if err != nil || cellW <= 0 {
+		if err != nil {
+			return MeasureResult{}, err
+		}
+		return MeasureResult{}, fmt.Errorf("surface.measure engine answer cellW is not positive")
+	}
+	cellH, err := finiteNumber(answer, "cellH")
+	if err != nil || cellH <= 0 {
+		if err != nil {
+			return MeasureResult{}, err
+		}
+		return MeasureResult{}, fmt.Errorf("surface.measure engine answer cellH is not positive")
+	}
+	return MeasureResult{Cols: cols, Rows: rows, CellW: cellW, CellH: cellH}, nil
+}
+
+func isPositiveFinite(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func positiveCount(request map[string]any, field string) (uint64, error) {
+	raw, present := request[field]
+	if !present {
+		return 0, fmt.Errorf("surface request is missing %s", field)
+	}
+	var value uint64
+	switch number := raw.(type) {
+	case uint64:
+		value = number
+	case float64:
+		if number <= 0 || number >= 1<<53 || math.Trunc(number) != number {
+			return 0, fmt.Errorf("surface request field %s is not a positive integer", field)
+		}
+		value = uint64(number)
+	default:
+		return 0, fmt.Errorf("surface request field %s is not a positive integer", field)
+	}
+	if value == 0 {
+		return 0, fmt.Errorf("surface request field %s is not a positive integer", field)
+	}
+	return value, nil
 }
 
 type CursorPresentation string
