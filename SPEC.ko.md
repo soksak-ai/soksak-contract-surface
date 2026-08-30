@@ -89,7 +89,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 | `surface.pointer` | `window, pane, point{x,y}, phase: "down"\|"move"\|"up", button: "none"\|"left"\|"middle"\|"right", clickCount, modifiers{shift,alt,control,meta}` | engine 결과: `route: "mouse-report"\|"ignored", dataB64` |
 | `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine 결과: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
 | `surface.focus` | `window, pane, focused` | `focused, cursorPresentation: "engine"\|"hollow-block"` |
-| `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
+| `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"`; 양수 `lines`는 history 방향, 음수 `lines`는 bottom 방향 | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — 현재 offset 의 viewport |
 | `surface.theme` | `pane, theme{…}` | `{}` — 링 재생성 없음 |
 | `surface.close` | `pane` | `{}` — `ended` 로 링을 끝낸다 |

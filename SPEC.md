@@ -93,7 +93,7 @@ missing or malformed field is refused with its name.
 | `surface.pointer` | `window, pane, point{x,y}, phase: "down"\|"move"\|"up", button: "none"\|"left"\|"middle"\|"right", clickCount, modifiers{shift,alt,control,meta}` | engine result: `route: "mouse-report"\|"ignored", dataB64` |
 | `surface.wheel` | `window, pane, point{x,y}, deltaX, deltaY, deltaMode: "pixel"\|"line"\|"page", modifiers{shift,alt,control,meta}` | engine result: `route: "scrollback"\|"mouse-report"\|"alternate-scroll"\|"ignored", offset, historySize, dataB64` |
 | `surface.focus` | `window, pane, focused` | `focused, cursorPresentation: "engine"\|"hollow-block"` |
-| `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"` | `offset, historySize` |
+| `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"`; positive `lines` moves into history and negative `lines` moves toward the bottom | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — the viewport at the current offset |
 | `surface.theme` | `pane, theme{…}` | `{}` — no ring rebuild |
 | `surface.close` | `pane` | `{}` — ends the ring with `ended` |
