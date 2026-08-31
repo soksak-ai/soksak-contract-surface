@@ -34,7 +34,7 @@ func TestChannelNameRefusesEmptyIdentifier(t *testing.T) {
 // Ports travel out of band; PortCount states how many rights ride beside the bytes.
 func TestMessagesRoundTrip(t *testing.T) {
 	for _, message := range []Message{
-		&Hello{SidecarID: "soksak-sidecar-terminal-alacritty"},
+		&Hello{SidecarID: "fixture-surface-provider"},
 		&Ring{Pane: "tab-abc123.1", PixelW: 1280, PixelH: 720, Scale: 2, CellW: 14, CellH: 28},
 		&FrameReady{Pane: "tab-abc123.1", RingIndex: 2, Seq: 42, CursorRow: 3, CursorCol: 7,
 			CursorVisible: true, Damage: []DamageRect{{X: 0, Y: 3, W: 80, H: 1}}},

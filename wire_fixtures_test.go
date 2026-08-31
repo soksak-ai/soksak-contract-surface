@@ -15,7 +15,7 @@ var updateFixtures = flag.Bool("update", false, "rewrite testdata/messages from 
 // fails here or in tests/wire.rs rather than on a live channel.
 func fixtureSet() map[string]Message {
 	return map[string]Message{
-		"hello":      &Hello{SidecarID: "soksak-sidecar-terminal-alacritty"},
+		"hello":      &Hello{SidecarID: "fixture-surface-provider"},
 		"ring":       &Ring{Pane: "tab-abc123.1", PixelW: 1280, PixelH: 720, Scale: 2, CellW: 14.5, CellH: 29},
 		"frameReady": &FrameReady{Pane: "tab-abc123.1", RingIndex: 2, Seq: 42, CursorRow: 3, CursorCol: 7, CursorVisible: true, Damage: []DamageRect{{X: 0, Y: 3, W: 80, H: 1}, {X: 4, Y: 9, W: 2, H: 2}}},
 		"released":   &Released{Pane: "tab-abc123.1", RingIndex: 2},
