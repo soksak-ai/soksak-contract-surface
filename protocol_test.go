@@ -163,7 +163,7 @@ func TestCommandNamesAreTheContract(t *testing.T) {
 	want := []string{
 		"surface.measure", "surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
 		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.focus", "surface.scroll", "surface.read",
-		"surface.theme", "surface.close",
+		"surface.theme", "surface.dim", "surface.close",
 	}
 	if got := strings.Join(CommandNames(), ","); got != strings.Join(want, ",") {
 		t.Fatalf("command table drifted: %s", got)

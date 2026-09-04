@@ -97,7 +97,15 @@ missing or malformed field is refused with its name.
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"`; positive `lines` moves into history and negative `lines` moves toward the bottom | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — the viewport at the current offset |
 | `surface.theme` | `pane, theme{…}` | `{}` — no ring rebuild |
+| `surface.dim` | `window, pane, dim: 0..1` | `{}` — the next frame is painted with it |
 | `surface.close` | `pane` | `{}` — ends the ring with `ended` |
+
+`surface.dim` takes light off what the surface paints. It multiplies every colour the surface
+draws and reaches nothing behind it: a surface is opaque, and declaring the dim as transparency
+instead puts the document behind it on screen. Measured 2026-09-04 — the picture that stands in for
+a parked surface was staged under one and brightened the pane by 0.5×(191−127) for two frames, and
+taking the surface off before that picture was drawn darkened it for two more. Neither frame exists
+for an opaque surface.
 
 `cols`/`rows` are the sidecar's answer, never the application's guess: the sidecar measured the
 font. `surface.measure` is side-effect free and is valid before a mirror, pane, ring or PTY exists.

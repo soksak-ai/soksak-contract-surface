@@ -12,7 +12,7 @@ func CommandNames() []string {
 	return []string{
 		"surface.measure", "surface.open", "surface.resize", "surface.setPaused", "surface.preedit",
 		"surface.selection", "surface.hover", "surface.pointer", "surface.wheel", "surface.focus", "surface.scroll", "surface.read",
-		"surface.theme", "surface.close",
+		"surface.theme", "surface.dim", "surface.close",
 	}
 }
 
@@ -149,6 +149,43 @@ type FocusRequest struct {
 type FocusEngineResult struct {
 	Focused            bool
 	CursorPresentation CursorPresentation
+}
+
+// DimRequest is how much of the surface's own light is taken off it.
+//
+// A dim is what the surface draws, not how much of the document behind it shows through. Declared
+// as transparency instead, the document is visible through the surface: measured 2026-09-04, the
+// picture that stands in for a parked surface brightened the pane by 0.5×(191−127) for two frames
+// while it was staged under one, and taking the surface off before that picture was drawn darkened
+// it for two more. An opaque surface has neither frame — what is behind it is never on screen.
+type DimRequest struct {
+	Window, Pane string
+	// Dim is 0 (the surface's own light) to 1 (black). It multiplies every colour the surface
+	// paints; it is not an alpha and nothing behind the surface is reached by it.
+	Dim float64
+}
+
+// ValidateDim validates one surface.dim request.
+func ValidateDim(request map[string]any) (DimRequest, error) {
+	if err := exactKeys("surface.dim", request, "window", "pane", "dim"); err != nil {
+		return DimRequest{}, err
+	}
+	window, err := text(request, "window")
+	if err != nil {
+		return DimRequest{}, err
+	}
+	pane, err := text(request, "pane")
+	if err != nil {
+		return DimRequest{}, err
+	}
+	dim, err := number(request, "dim")
+	if err != nil {
+		return DimRequest{}, err
+	}
+	if dim < 0 || dim > 1 {
+		return DimRequest{}, fmt.Errorf("surface.dim dim must be between 0 and 1, got %v", dim)
+	}
+	return DimRequest{Window: window, Pane: pane, Dim: dim}, nil
 }
 
 func ValidateFocus(request map[string]any) (FocusRequest, error) {

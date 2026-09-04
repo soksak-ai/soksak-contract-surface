@@ -12,7 +12,13 @@ mach 채널, 그리고 버전 있는 control envelope 위의 `surface.*` 명령.
 ## 1. 목적과 소유
 
 - **렌더 사이드카(픽셀 소유):** 그리드 미러, 글리프 래스터화, Metal 파이프라인, IOSurface 링, damage
-  추적, preedit·선택·hover 오버레이, 셀 치수. 애플리케이션이 준 픽셀 상자에서 `cols`/`rows` 를
+  추적, preedit·선택·hover 오버레이, 셀 치수. 애플리케이션이 준 픽셀 상자에서 `surface.dim` 은 서피스가 그리는 빛을 덜어냅니다. 서피스가 칠하는 모든 색에 곱해지며 뒤의 무엇에도
+닿지 않습니다. 서피스는 불투명하고, dim 을 투명도로 선언하면 뒤의 문서가 화면에 나옵니다. 2026-09-04
+실측 — park 된 서피스를 대신하는 그림을 그 밑에 깔자 pane 이 0.5×(191−127) 만큼 두 프레임 밝아졌고,
+그림이 그려지기 전에 서피스를 내리자 두 프레임 어두워졌습니다. 불투명한 서피스에는 두 프레임이 다
+없습니다.
+
+`cols`/`rows` 를
   계산한다.
 - **애플리케이션(창 소유):** 링의 표면 하나를 레이어 트리에 합성하고, 키보드·IME·마우스·스크롤을
   받아 입력 바이트를 PTY 로 전달하고, 기하를 보고하고, 파킹용 픽셀을 읽는다. 셀도 글리프도
@@ -93,6 +99,7 @@ payload 는 다른 모든 사이드카 명령처럼 `args.request` 의 JSON, 답
 | `surface.scroll` | `pane, offset` \| `lines` \| `edge: "top"\|"bottom"`; 양수 `lines`는 history 방향, 음수 `lines`는 bottom 방향 | `offset, historySize` |
 | `surface.read` | `pane, lines?` | `text` — 현재 offset 의 viewport |
 | `surface.theme` | `pane, theme{…}` | `{}` — 링 재생성 없음 |
+| `surface.dim` | `window, pane, dim: 0..1` | `{}` — 다음 프레임부터 적용 |
 | `surface.close` | `pane` | `{}` — `ended` 로 링을 끝낸다 |
 
 `cols`/`rows` 는 사이드카의 답이지 애플리케이션의 추측이 아니다. 폰트를 측정한 쪽이 사이드카다.
